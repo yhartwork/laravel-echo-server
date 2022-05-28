@@ -17,7 +17,7 @@ server.run({
 			"databasePath": "/database/laravel-echo-server.sqlite"
 		}
 	},
-	"devMode": true,
+	"devMode": process.env.DEV_MODE == 'true' ? true : false,
 	"host": null,
 	"port": "6001",
 	"protocol": "http",
