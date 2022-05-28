@@ -115,23 +115,32 @@ export class PresenceChannel {
      * Remove a member from a presenece channel and broadcast they have left
      * only if not other presence channel instances exist.
      */
-    leave(socket: any, channel: string): void {
+     leave(socket: any, channel: string): void {
         this.getMembers(channel).then(
             (members) => {
                 members = members || [];
-                let member = members.find(
-                    (member) => member.socketId == socket.id
-                );
-                members = members.filter((m) => m.socketId != member.socketId);
+
+                let member
+
+                members = members.filter((m) => {
+                    if(m.socketId == socket.id) {
+                        member = m
+                        return false
+                    }
+
+                    return true
+                });
 
                 this.db.set(channel + ":members", members);
 
-                this.isMember(channel, member).then((is_member) => {
-                    if (!is_member) {
-                        delete member.socketId;
-                        this.onLeave(channel, member);
-                    }
-                });
+                if(member) {
+                    this.isMember(channel, member).then((is_member) => {
+                        if (!is_member) {
+                            delete member.socketId;
+                            this.onLeave(channel, member);
+                        }
+                    });
+                }
             },
             (error) => Log.error(error)
         );
@@ -141,9 +150,18 @@ export class PresenceChannel {
      * On join event handler.
      */
     onJoin(socket: any, channel: string, member: any): void {
-        this.io.sockets.connected[socket.id].broadcast
-            .to(channel)
-            .emit("presence:joining", channel, member);
+        if (!(socket.id in this.io.sockets.connected)) {
+            this.isMember(channel, member).then((is_member) => {
+                if (!is_member) {
+                    delete member.socketId;
+                    this.onLeave(channel, member);
+                }
+            })
+        } else {
+            this.io.sockets.connected[socket.id].broadcast
+                .to(channel)
+                .emit("presence:joining", channel, member);
+        }
     }
 
     /**
